@@ -66,6 +66,14 @@ module.exports = (sequelize, Sequelize) => {
         }
       },
     },
+    startTime: {
+      type: Sequelize.STRING,
+      allowNull: false,
+    },
+    waitTime: {
+      type: Sequelize.STRING,
+      allowNull: false,
+    },
     createdAt: {
       type: 'TIMESTAMP',
       defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),

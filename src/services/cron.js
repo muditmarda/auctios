@@ -3,21 +3,23 @@ const db = require("../models/index");
 
 const Sequelize = require("sequelize");
 
-// Store in config
+// TODO: Store in config
 const auctionContractAddress = "KT1NG33RboNuw4KSQmFBZtY5ast5334o5zfh";
 
+// TODO: put stuff propery in try catch 
 async function pollAuctionContract(){
     try {
     let contractHistory = await db.contractHistories.findOne({
         where: {contractAddress: auctionContractAddress}
     });
+    if (!contractHistory){
+        return;
+    }
 
-    // put this call in try catch 
     const resp = await BetterCallApi.getContractOperations(auctionContractAddress, contractHistory.dataValues.lastId);
     const new_ops = resp.operations.reverse();
-
     last_id = resp.last_id;
-    // put for loop in try catch
+
     for (const new_op of new_ops) {
         // TODO: check all possible status
         if (new_op.status === 'failed' || new_op.status === "backtracked") {
@@ -25,14 +27,14 @@ async function pollAuctionContract(){
         }
         else if (new_op.status != 'applied') {
             // what to do
-            console.log("=======================Bugg=======================");
-            console.log(new_op, "\n\n\n");
+            console.log("\n\n=======================Bugg=======================");
+            console.log({new_op});
             continue;
         }
         switch(new_op.entrypoint){
             case "configureAuction":
                 const instanceStorageDetails = await BetterCallApi.getContractStorage(new_op.destination);
-                // save to DB - auctions
+                // save to auctions table
                 let assetName = "";
                 let assetId = "";
                 let auctionType = "";
@@ -140,15 +142,15 @@ async function pollAuctionContract(){
                 )
                 break;
             case "destroyInstance":
-                // set status as completed in auctions table for contract_address == new_op.destination
+                // set status as completed in auctions table
                 await db.auctions.update(
                     { auctionStatus: "completed" },
                     { where : {contractAddress: new_op.destination }}
                 )
-                // get participants from auctions table for contract_address == new_ops[i].destination
+                // get participants from auctions table for contract_address
                 // for each participant, clear this auction's id from their bid table entry (auctionIds array)
                 const auctionDetails = db.auctions.findOne({
-                    where: {contract_address: new_op.destination}
+                    where: {contractAddress: new_op.destination}
                 })
                 const participants = auctionDetails.participants;
                 participants.forEach(async (participant) => {
@@ -188,7 +190,7 @@ async function pollAuctionContract(){
 
 }
 
-// Try catch
+// TODO: put stuff propery in try catch 
 async function pollInstanceContracts(){
     // findAll from auctions from contractHistories where contractAddress != auctionContractAddress
     // poll till instance is destroyed and entry is deleted from contractHistories
@@ -208,8 +210,8 @@ async function pollInstanceContracts(){
             }
             else if (new_op.status != 'applied') {
                 // what to do
-                console.log("=======================Bugg=======================");
-                console.log(new_op, "\n\n\n");
+                console.log("\n\n=======================Bugg=======================");
+                console.log({new_op});
                 continue;
             }
             switch (auctionDetails.auctionType) {
@@ -231,14 +233,14 @@ async function pollInstanceContracts(){
                         })
                         // bidDetails = [instance, created]
                         if (bidDetails[1]) {
-                            const auctionIds = []
-                            auctionIds.push(auctionDetails.assetId)
-                            const bids = []
-                            bids.push(new_op.amount)
+                            const auctionIds = [];
+                            auctionIds.push(auctionDetails.assetId);
+                            const bids = [];
+                            bids.push(new_op.amount);
                             await db.bids.update(
                                 {auctionIds, bids},
                                 {where: {userPubKey: new_op.source}}
-                            )
+                            );
                         } else {
                             let index = bidDetails[0].auctionIds.indexOf(auctionDetails.assetId);
                             if (index == -1){
@@ -247,13 +249,13 @@ async function pollInstanceContracts(){
                                 await db.bids.update(
                                     {auctionIds: bidDetails[0].auctionIds, bids: bidDetails[0].bids},
                                     {where: {userPubKey: new_op.source}}
-                                )
+                                );
                             } else {
                                 bidDetails[0].bids[index] = new_op.amount;
                                 await db.bids.update(
                                     {bids: bidDetails[0].bids},
                                     {where: {userPubKey: new_op.source}}
-                                )
+                                );
                             }
                         }
                     }
@@ -268,7 +270,7 @@ async function pollInstanceContracts(){
                             {where: {contractAddress: auctionDetails.contractAddress}}
                         )
                     }
-                        break;
+                    break;
                 case "sealed-bid":
                     // check for "submitSealedBid" entrypoint 
                     // add source account as participant in auctions table 

@@ -74,20 +74,6 @@ function getContractOperations(
         });
 }
 
-function getContractEntrypoints(address) {
-return api
-    .get(`/contract/${network}/${address}/entrypoints`)
-    .then((res) => {
-    if (!res) {
-        return res;
-    }
-    if (res.status != 200) {
-        return displayError(res);
-    }
-    return res.data;
-    });
-}
-
 function getContractStorage(address) {
 return api
     .get(`/contract/${network}/${address}/storage`)

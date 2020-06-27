@@ -115,8 +115,40 @@ async function shortlistAuction(userPubKey, assetId){
 }
 
 // Take image and store in file system?
-async function updateAuctionDetails(userPubKey, assetId, assetDescription){
+async function updateAuctionDetails(
+    userPubKey, assetId, assetName, auctionType, 
+    contractAddress, startTime, waitTime, auctionParams, 
+    assetDescription, assetImageFileName
+){
+    const auctionDetails = await db.auctions.findOne({
+        where: {
+            contractAddress
+        }
+    });
 
+    if (!auctionDetails) {
+        await db.auctions.create({
+            userPubKey,
+            assetId,
+            assetName,  
+            auctionType,
+            contractAddress,
+            startTime,
+            waitTime,
+            auctionStatus: "upcoming",
+            owner: userPubKey,
+            auctionParams,
+            assetDescription,
+            assetImageFileName
+        });
+        return;
+    } else {
+        await auctionDetails.update({
+            assetDescription,
+            assetImageFileName
+        })
+    }
 }
 module.exports.getAuctions = getAuctions;
 module.exports.shortlistAuction = shortlistAuction;
+module.exports.updateAuctionDetails = updateAuctionDetails;

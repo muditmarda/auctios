@@ -2,8 +2,8 @@ const Status = {
   UPCOMING: "upcoming",
   ONGOING: "ongoing",
   FINISHED: "finished",
-  CANCELLED: "cancelled"
-}
+  CANCELLED: "cancelled",
+};
 
 // Why userPubKey and owner both needed?
 // Rename as seller and buyer
@@ -18,12 +18,12 @@ module.exports = (sequelize, Sequelize) => {
       allowNull: false,
     },
     auctionType: {
-        type: Sequelize.STRING,
-        allowNull: false,
+      type: Sequelize.STRING,
+      allowNull: false,
     },
     contractAddress: {
-        type: Sequelize.STRING,
-        primaryKey: true,
+      type: Sequelize.STRING,
+      primaryKey: true,
     },
     owner: {
       type: Sequelize.STRING,
@@ -34,6 +34,10 @@ module.exports = (sequelize, Sequelize) => {
       allowNull: false,
     },
     assetDescription: {
+      type: Sequelize.STRING,
+      allowNull: true,
+    },
+    assetImageFileName: {
       type: Sequelize.STRING,
       allowNull: true,
     },
@@ -51,18 +55,21 @@ module.exports = (sequelize, Sequelize) => {
       allowNull: true,
       // returns an array of participants
       get() {
-        if (this.getDataValue('participants')){
-          return this.getDataValue('participants').split(';');
+        if (this.getDataValue("participants")) {
+          return this.getDataValue("participants").split(";");
         } else {
           return [];
         }
       },
       // appends a participant to the participants array
       set(val) {
-        if (this.getDataValue('participants')){
-          this.setDataValue('participants', this.getDataValue('participants').concat(';').concat(val));
+        if (this.getDataValue("participants")) {
+          this.setDataValue(
+            "participants",
+            this.getDataValue("participants").concat(";").concat(val)
+          );
         } else {
-          this.setDataValue('participants', val)
+          this.setDataValue("participants", val);
         }
       },
     },
@@ -75,14 +82,13 @@ module.exports = (sequelize, Sequelize) => {
       allowNull: false,
     },
     createdAt: {
-      type: 'TIMESTAMP',
-      defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+      type: "TIMESTAMP",
+      defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
     },
     updatedAt: {
-      type: 'TIMESTAMP',
-      defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+      type: "TIMESTAMP",
+      defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
     },
   });
   return AuctionModel;
 };
-  

@@ -1,6 +1,5 @@
 module.exports = (sequelize, Sequelize) => {
-  // TODO: Rename
-  const ContractHistoryModel = sequelize.define("contractHistories", {
+  const ContractLastIdModel = sequelize.define('contractLastIds', {
     contractAddress: {
       type: Sequelize.STRING,
       primaryKey: true,
@@ -19,5 +18,5 @@ module.exports = (sequelize, Sequelize) => {
     },
   });
 
-  return ContractHistoryModel;
+  return ContractLastIdModel;
 };

@@ -1,15 +1,13 @@
 const Status = {
-  UPCOMING: "upcoming",
-  ONGOING: "ongoing",
-  FINISHED: "finished",
-  CANCELLED: "cancelled"
-}
+  UPCOMING: 'upcoming',
+  ONGOING: 'ongoing',
+  FINISHED: 'finished',
+  CANCELLED: 'cancelled',
+};
 
-// Why userPubKey and owner both needed?
-// Rename as seller and buyer
 module.exports = (sequelize, Sequelize) => {
-  const AuctionModel = sequelize.define("auctions", {
-    userPubKey: {
+  const AuctionModel = sequelize.define('auctions', {
+    seller: {
       type: Sequelize.STRING,
       allowNull: false,
     },
@@ -18,14 +16,15 @@ module.exports = (sequelize, Sequelize) => {
       allowNull: false,
     },
     auctionType: {
-        type: Sequelize.STRING,
-        allowNull: false,
+      type: Sequelize.STRING,
+      allowNull: false,
     },
+    // Transaction Hash is stored in contractAddress when transferOwnership operation is called
     contractAddress: {
-        type: Sequelize.STRING,
-        primaryKey: true,
+      type: Sequelize.STRING,
+      primaryKey: true,
     },
-    owner: {
+    buyer: {
       type: Sequelize.STRING,
       allowNull: false,
     },
@@ -34,6 +33,10 @@ module.exports = (sequelize, Sequelize) => {
       allowNull: false,
     },
     assetDescription: {
+      type: Sequelize.STRING,
+      allowNull: true,
+    },
+    assetImageFileName: {
       type: Sequelize.STRING,
       allowNull: true,
     },
@@ -51,7 +54,7 @@ module.exports = (sequelize, Sequelize) => {
       allowNull: true,
       // returns an array of participants
       get() {
-        if (this.getDataValue('participants')){
+        if (this.getDataValue('participants')) {
           return this.getDataValue('participants').split(';');
         } else {
           return [];
@@ -59,10 +62,13 @@ module.exports = (sequelize, Sequelize) => {
       },
       // appends a participant to the participants array
       set(val) {
-        if (this.getDataValue('participants')){
-          this.setDataValue('participants', this.getDataValue('participants').concat(';').concat(val));
+        if (this.getDataValue('participants')) {
+          this.setDataValue(
+            'participants',
+            this.getDataValue('participants').concat(';').concat(val),
+          );
         } else {
-          this.setDataValue('participants', val)
+          this.setDataValue('participants', val);
         }
       },
     },
@@ -70,7 +76,7 @@ module.exports = (sequelize, Sequelize) => {
       type: Sequelize.STRING,
       allowNull: false,
     },
-    waitTime: {
+    roundTime: {
       type: Sequelize.STRING,
       allowNull: false,
     },
@@ -85,4 +91,3 @@ module.exports = (sequelize, Sequelize) => {
   });
   return AuctionModel;
 };
-  

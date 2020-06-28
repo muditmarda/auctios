@@ -1,122 +1,128 @@
-const db = require("../models/index");
-const Sequelize = require("sequelize");
+const db = require('../models/index');
+const Sequelize = require('sequelize');
 
-async function getAuctions(userPubKey){
-    const res = []
-    if (!userPubKey) {
-        const auctionDetails = await db.auctions.findAll();
-        auctionDetails.forEach(element => {
-            if (element.dataValues.participants){
-                element.dataValues.participantCount = element.dataValues.participants.length;
-            } else {
-                element.dataValues.participantCount = 0;
-            }
-            res.push(element.dataValues);
-        });
-        return res;    
-    }
-    const auctionDetails = await db.auctions.findAll({
-        where: Sequelize.or(
-            { owner: userPubKey },
-            { userPubKey: userPubKey }
-        )        
-    });
-    // check validity of userPubKey
-    if (auctionDetails.length === 0 ) {
-        return res;
-    }
+async function getAuctions(userPubKey) {
+  const res = [];
+  if (!userPubKey) {
+    const auctionDetails = await db.auctions.findAll();
     auctionDetails.forEach((element) => {
-        const detail = {};
-        detail.assetId = element.assetId;
-        detail.assetName = element.assetName;
-        detail.assetDescription = element.assetDescription;
-        detail.auctionType = element.auctionType;
-        detail.contractAddress = element.contractAddress;
-        detail.seller = element.userPubKey;
-        detail.buyer = element.owner;
-        if (userPubKey === element.owner){
-            detail.participatedAs = "bidder";
-        } else if (userPubKey === element.userPubKey){
-            detail.participatedAs = "auctioneer"
-        }
-        detail.auctionParams = element.auctionParams;
-        detail.auctionStatus = element.auctionStatus;
-        detail.participantCount = element.participants.length;
-        detail.shortlisted = false;
-
-        res.push(detail);
+      if (element.dataValues.participants) {
+        element.dataValues.participantCount =
+          element.dataValues.participants.length;
+      } else {
+        element.dataValues.participantCount = 0;
+      }
+      res.push(element.dataValues);
     });
-    console.log({res})
-    const bidDetails = await db.bids.findOne({
-        where: {
-            userPubKey
-        }
-    });
-    if (!bidDetails) {
-        return res;
+    return res;
+  }
+  const auctionDetails = await db.auctions.findAll({
+    where: Sequelize.or({ buyer: userPubKey }, { seller: userPubKey }),
+  });
+  // check validity of userPubKey
+  if (auctionDetails.length === 0) {
+    return res;
+  }
+  auctionDetails.forEach((element) => {
+    const detail = {};
+    detail.assetId = element.assetId;
+    detail.assetName = element.assetName;
+    detail.assetDescription = element.assetDescription;
+    detail.auctionType = element.auctionType;
+    detail.contractAddress = element.contractAddress;
+    detail.seller = element.seller;
+    detail.buyer = element.buyer;
+    if (userPubKey === element.buyer) {
+      detail.participatedAs = 'bidder';
+    } else if (userPubKey === element.seller) {
+      detail.participatedAs = 'auctioneer';
     }
-    bidDetails.shortlistedAuctionIds.forEach(async(element) => {
-        const auctionDetails = await db.auctions.findOne({
-            where: {
-                assetId: element
-            }
-        });
-        const detail = {};
-        detail.assetId = auctionDetails.assetId;
-        detail.assetName = auctionDetails.assetName;
-        detail.assetDescription = auctionDetails.assetDescription;
-        detail.auctionType = auctionDetails.auctionType;
-        detail.contractAddress = auctionDetails.contractAddress;
-        detail.seller = auctionDetails.userPubKey;
-        detail.participatedAs = "bidder"
-        detail.auctionParams = auctionDetails.auctionParams;
-        detail.auctionStatus = auctionDetails.auctionStatus;
-        detail.participantCount = auctionDetails.participants.length;
-        detail.shortlisted = true;
+    detail.auctionParams = element.auctionParams;
+    detail.auctionStatus = element.auctionStatus;
+    detail.participantCount = element.participants.length;
+    detail.shortlisted = false;
 
-        res.push(detail);
+    res.push(detail);
+  });
+  console.log({ res });
+  const bidDetails = await db.bids.findOne({
+    where: {
+      userPubKey,
+    },
+  });
+  if (!bidDetails) {
+    return res;
+  }
+  bidDetails.shortlistedAuctionIds.forEach(async (element) => {
+    const shortlistedAuctionDetails = await db.auctions.findOne({
+      where: {
+        assetId: element,
+      },
     });
-    bidDetails.auctionId.array.forEach(element => {
-        
+    const detail = {};
+    detail.assetId = shortlistedAuctionDetails.assetId;
+    detail.assetName = shortlistedAuctionDetails.assetName;
+    detail.assetDescription = shortlistedAuctionDetails.assetDescription;
+    detail.auctionType = shortlistedAuctionDetails.auctionType;
+    detail.contractAddress = shortlistedAuctionDetails.contractAddress;
+    detail.seller = shortlistedAuctionDetails.seller;
+    detail.participatedAs = 'bidder';
+    detail.auctionParams = shortlistedAuctionDetails.auctionParams;
+    detail.auctionStatus = shortlistedAuctionDetails.auctionStatus;
+    detail.shortlisted = true;
+
+    res.push(detail);
+  });
+  bidDetails.auctionId.array.forEach(async (element) => {
+    const participatedAuctionDetails = await db.auctions.findOne({
+      where: { assetId: element },
     });
+    const detail = {};
+    detail.assetId = participatedAuctionDetails.assetId;
+    detail.assetName = participatedAuctionDetails.assetName;
+    detail.assetDescription = participatedAuctionDetails.assetDescription;
+    detail.auctionType = participatedAuctionDetails.auctionType;
+    detail.contractAddress = participatedAuctionDetails.contractAddress;
+    detail.seller = participatedAuctionDetails.seller;
+    detail.participatedAs = 'bidder';
+    detail.auctionParams = participatedAuctionDetails.auctionParams;
+    detail.auctionStatus = participatedAuctionDetails.auctionStatus;
+    detail.participantCount = participatedAuctionDetails.participants.length;
+    detail.shortlisted = false;
+
+    res.push(detail);
+  });
 }
 
-async function shortlistAuction(userPubKey, assetId){
-    // make entry for userPubKey in bid table in shortlistedAuctionIds and add userPubKey 
-    const bidDetails = await db.bids.findOrCreate({
-        where: {
-            userPubKey: userPubKey
-        }
-    })
-    // bidDetails = [instance, created]
-    if (bidDetails[1]) {
-        const shortlistedAuctionIds = []
-        shortlistedAuctionIds.push(assetId)
-        await db.bids.update(
-            {shortlistedAuctionIds},
-            {where: {userPubKey}}
-        )
+async function shortlistAuction(userPubKey, assetId) {
+  // make entry for userPubKey in bid table in shortlistedAuctionIds and add userPubKey
+  const bidDetails = await db.bids.findOrCreate({
+    where: {
+      userPubKey: userPubKey,
+    },
+  });
+  // bidDetails = [instance, created]
+  if (bidDetails[1]) {
+    const shortlistedAuctionIds = [];
+    shortlistedAuctionIds.push(assetId);
+    await db.bids.update({ shortlistedAuctionIds }, { where: { userPubKey } });
+  } else {
+    let index = bidDetails[0].shortlistedAuctionIds.indexOf(assetId);
+    if (index == -1) {
+      bidDetails[0].shortlistedAuctionIds.push(assetId);
+      await db.bids.update(
+        { shortlistedAuctionIds: bidDetails[0].shortlistedAuctionIds },
+        { where: { userPubKey } },
+      );
     } else {
-        let index = bidDetails[0].shortlistedAuctionIds.indexOf(assetId);
-        if (index == -1){
-            bidDetails[0].shortlistedAuctionIds.push(assetId);
-            await db.bids.update(
-                {shortlistedAuctionIds: bidDetails[0].shortlistedAuctionIds},
-                {where: {userPubKey}}
-            )
-        } else {
-            bidDetails[0].shortlistedAuctionIds.splice(index, 1)
-            await db.bids.update(
-                {shortlistedAuctionIds: bidDetails[0].shortlistedAuctionIds},
-                {where: {userPubKey}}
-            )
-        }
+      bidDetails[0].shortlistedAuctionIds.splice(index, 1);
+      await db.bids.update(
+        { shortlistedAuctionIds: bidDetails[0].shortlistedAuctionIds },
+        { where: { userPubKey } },
+      );
     }
+  }
 }
 
-// Take image and store in file system?
-async function updateAuctionDetails(userPubKey, assetId, assetDescription){
-
-}
 module.exports.getAuctions = getAuctions;
 module.exports.shortlistAuction = shortlistAuction;

@@ -9,25 +9,33 @@ const auctionContractAddress = config.auctionContractAddress;
 // TODO: put stuff propery in try catch
 async function pollAuctionContract() {
   try {
-    const contractHistory = await db.contractLastIds.findOne({
+    const contractHistory = await db.contractLastTimestamps.findOne({
       where: { contractAddress: auctionContractAddress },
     });
-    let lastId;
+    let lastTimeStamp;
     if (!contractHistory) {
-      await db.contractLastIds.create({
+      await db.contractLastTimestamps.create({
         contractAddress: auctionContractAddress,
       });
-      lastId = '';
+      lastTimeStamp = '';
     } else {
-      lastId = contractHistory.lastId;
+      lastTimeStamp = contractHistory.lastTimeStamp;
     }
 
-    const resp = await TezosApi.getContractOperations(
-      auctionContractAddress,
-      lastId,
-    );
-    const new_ops = resp.operations.reverse();
-    last_id = resp.last_id;
+    let new_ops;
+    if (lastTimeStamp == '') {
+      const resp = await onlyFirstTimeOperationsFetch(auctionContractAddress);
+      lastTimeStamp = resp.lastTimeStamp;
+      new_ops = resp.ops.reverse();
+    } else {
+      const resp = await TezosApi.getContractOperations(
+        auctionContractAddress,
+        '',
+        new Date(lastTimeStamp).getTime(),
+      );
+      new_ops = resp.operations.reverse();
+      lastTimeStamp = resp.operations[0].timestamp;
+    }
 
     for (const new_op of new_ops) {
       // TODO: check all possible status
@@ -154,9 +162,15 @@ async function pollAuctionContract() {
           });
           break;
         case 'startAuction':
-          // save to contractLastIds table
-          await db.contractLastIds.create({
+          const instance = await db.contractLastTimestamps.findOne({
+            where: { contractAddress: new_op.destination },
+          });
+
+          if (instance) continue;
+          // save to contractLastTimestamps table
+          await db.contractLastTimestamps.create({
             contractAddress: new_op.destination,
+            lastTimeStamp: ""
           });
           // change status to ongoing
           await db.auctions.update(
@@ -181,7 +195,7 @@ async function pollAuctionContract() {
             participants.forEach(async (participant) => {
               const bidDetails = await db.bids.findOrCreate({
                 where: {
-                    userPubKey: participant,
+                  userPubKey: participant,
                 },
               });
               let index = bidDetails.participatedAuctionIds.indexOf(
@@ -198,8 +212,8 @@ async function pollAuctionContract() {
               );
             });
           }
-          // delete entry from contractLastIds
-          await db.contractLastIds.destroy({
+          // delete entry from contractLastTimestamps
+          await db.contractLastTimestamps.destroy({
             where: { contractAddress: new_op.source },
           });
           break;
@@ -212,8 +226,8 @@ async function pollAuctionContract() {
           break;
       }
     }
-    await db.contractLastIds.update(
-      { lastId: last_id },
+    await db.contractLastTimestamps.update(
+      { lastTimeStamp },
       { where: { contractAddress: auctionContractAddress } },
     );
   } catch (err) {
@@ -222,28 +236,44 @@ async function pollAuctionContract() {
 }
 
 async function pollAllInstanceContracts() {
-  // findAll from auctions from contractLastIds where contractAddress != auctionContractAddress
-  // poll till instance is destroyed and entry is deleted from contractLastIds
-  const liveAuctions = await db.contractLastIds.findAll({
+  // findAll from auctions from contractLastTimestamps where contractAddress != auctionContractAddress
+  // poll till instance is destroyed and entry is deleted from contractLastTimestamps
+  const liveAuctions = await db.contractLastTimestamps.findAll({
     where: { contractAddress: { [Sequelize.Op.not]: auctionContractAddress } },
   });
   for (const iterator of liveAuctions) {
     await pollInstanceContract(
       iterator.dataValues.contractAddress,
-      iterator.dataValues.lastId,
+      iterator.dataValues.lastTimeStamp,
     );
   }
 }
 
 // TODO: put stuff propery in try catch
-async function pollInstanceContract(contractAddress, lastId) {
+async function pollInstanceContract(contractAddress, lastTimeStamp) {
   try {
     const auctionDetails = await db.auctions.findOne({
       where: { contractAddress: contractAddress },
     });
-    const data = await TezosApi.getContractOperations(contractAddress, lastId);
-    const new_ops = data.operations.reverse();
-    last_id = data.last_id;
+
+    lastTimeStamp = lastTimeStamp == '' ? '' : new Date(lastTimeStamp).getTime();
+
+
+    let new_ops;
+    if (lastTimeStamp == '') {
+      const resp = await onlyFirstTimeOperationsFetch(contractAddress);
+      lastTimeStamp = resp.lastTimeStamp;
+      new_ops = resp.ops.reverse();
+    } else {
+      const resp = await TezosApi.getContractOperations(
+        contractAddress,
+        '',
+        new Date(lastTimeStamp).getTime(),
+      );
+      new_ops = resp.operations.reverse();
+      lastTimeStamp = resp.operations[0].timestamp;
+    }
+
     for (const new_op of new_ops) {
       if (new_op.status === 'failed') {
         continue;
@@ -336,13 +366,35 @@ async function pollInstanceContract(contractAddress, lastId) {
         //
       }
     }
-    await db.contractLastIds.update(
-      { lastId: last_id },
+    await db.contractLastTimestamps.update(
+      { lastTimeStamp },
       { where: { contractAddress: contractAddress } },
     );
   } catch (err) {
     console.log({ err });
   }
+}
+
+async function onlyFirstTimeOperationsFetch(address) {
+  let responses = [];
+  let opId = '';
+  let lastTimeStamp = '';
+
+  while (true) {
+    const resp = await TezosApi.getContractOperations(
+      address,
+      opId,
+    );
+    if (resp.operations.length === 0) break;
+
+    opId = resp.last_id;
+    responses = responses.concat(resp.operations);
+  }
+
+  return {
+    ops: responses,
+    lastTimeStamp,
+  };
 }
 
 module.exports.pollAuctionContract = pollAuctionContract;

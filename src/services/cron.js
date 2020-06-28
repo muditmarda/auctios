@@ -181,7 +181,7 @@ async function pollAuctionContract() {
             participants.forEach(async (participant) => {
               const bidDetails = await db.bids.findOrCreate({
                 where: {
-                  seller: participant,
+                    userPubKey: participant,
                 },
               });
               let index = bidDetails.participatedAuctionIds.indexOf(
@@ -194,7 +194,7 @@ async function pollAuctionContract() {
                   participatedAuctionIds: bidDetails.participatedAuctionIds,
                   bids: bidDetails.bids,
                 },
-                { where: { seller: participant } },
+                { where: { userPubKey: participant } },
               );
             });
           }
@@ -270,7 +270,7 @@ async function pollInstanceContract(contractAddress, lastId) {
             // make entry for source account in bid table and add source account as participant in auctions table
             const bidDetails = await db.bids.findOrCreate({
               where: {
-                seller: new_op.source,
+                userPubKey: new_op.source,
               },
             });
             // bidDetails = [instance, created]
@@ -281,7 +281,7 @@ async function pollInstanceContract(contractAddress, lastId) {
               bids.push(new_op.amount);
               await db.bids.update(
                 { participatedAuctionIds, bids },
-                { where: { seller: new_op.source } },
+                { where: { userPubKey: new_op.source } },
               );
             } else {
               let index = bidDetails[0].participatedAuctionIds.indexOf(
@@ -298,13 +298,13 @@ async function pollInstanceContract(contractAddress, lastId) {
                       bidDetails[0].participatedAuctionIds,
                     bids: bidDetails[0].bids,
                   },
-                  { where: { seller: new_op.source } },
+                  { where: { userPubKey: new_op.source } },
                 );
               } else {
                 bidDetails[0].bids[index] = new_op.amount;
                 await db.bids.update(
                   { bids: bidDetails[0].bids },
-                  { where: { seller: new_op.source } },
+                  { where: { userPubKey: new_op.source } },
                 );
               }
             }

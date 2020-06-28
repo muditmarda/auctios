@@ -8,14 +8,14 @@ module.exports = (sequelize, Sequelize) => {
       type: Sequelize.TEXT,
       defaultValue: '',
       get() {
-        if (this.getDataValue('auctionIds')) {
-          return this.getDataValue('auctionIds').split(';');
+        if (this.getDataValue('participatedAuctionIds')) {
+          return this.getDataValue('participatedAuctionIds').split(';');
         } else {
           return [];
         }
       },
       set(val) {
-        this.setDataValue('auctionIds', val.join(';'));
+        this.setDataValue('participatedAuctionIds', val.join(';'));
       },
     },
     bids: {

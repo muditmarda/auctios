@@ -50,7 +50,7 @@ app.post('/update-auction-details', async (req, res) => {
     }
 
     const assetDescription = req.body.description;
-    if (!description) {
+    if (!assetDescription) {
       return res.status(400).send('Missing parameter asset description');
     }
 

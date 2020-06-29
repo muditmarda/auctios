@@ -23,8 +23,11 @@ async function pollAuctionContract() {
     }
 
     let new_ops;
+    // fetch all historical operations when server is started and the cron runs for the first time
     if (lastTimeStamp == '') {
-      const resp = await onlyFirstTimeOperationsFetch(auctionContractAddress);
+      const resp = await TezosApi.getHistoricalOperations(
+        auctionContractAddress,
+      );
       lastTimeStamp = resp.lastTimeStamp;
       new_ops = resp.ops.reverse();
     } else {
@@ -75,7 +78,8 @@ async function pollAuctionContract() {
                 break;
               // English auction params
               case 'current_bid':
-                auctionParams.currentBid = element.value;
+                auctionParams.highestBid = element.value;
+                auctionParams.reservePrice = element.value;
                 break;
               case 'min_increase':
                 auctionParams.minIncrease = element.value;
@@ -86,13 +90,14 @@ async function pollAuctionContract() {
               // Dutch auction params
               case 'current_price':
                 auctionParams.currentPrice = element.value;
+                auctionParams.openingPrice = element.value;
                 break;
               case 'reserve_price':
                 auctionParams.reservePrice = element.value;
                 break;
               // Sealed bid auction params
-              case 'participation_fee':
-                auctionParams.participationFee = element.value;
+              case 'deposit':
+                auctionParams.deposit = element.value;
                 break;
               case 'highest_bid':
                 auctionParams.highestBid = element.value;
@@ -170,7 +175,7 @@ async function pollAuctionContract() {
           // save to contractLastTimestamps table
           await db.contractLastTimestamps.create({
             contractAddress: new_op.destination,
-            lastTimeStamp: ""
+            lastTimeStamp: '',
           });
           // change status to ongoing
           await db.auctions.update(
@@ -256,12 +261,12 @@ async function pollInstanceContract(contractAddress, lastTimeStamp) {
       where: { contractAddress: contractAddress },
     });
 
-    lastTimeStamp = lastTimeStamp == '' ? '' : new Date(lastTimeStamp).getTime();
-
+    lastTimeStamp =
+      lastTimeStamp == '' ? '' : new Date(lastTimeStamp).getTime();
 
     let new_ops;
     if (lastTimeStamp == '') {
-      const resp = await onlyFirstTimeOperationsFetch(contractAddress);
+      const resp = await TezosApi.getHistoricalOperations(contractAddress);
       lastTimeStamp = resp.lastTimeStamp;
       new_ops = resp.ops.reverse();
     } else {
@@ -288,8 +293,8 @@ async function pollInstanceContract(contractAddress, lastTimeStamp) {
           // check for "bid" entrypoint
           // store highest_bid and highest_bidder in auction_params JSON in auctions table
           if (new_op.entrypoint === 'bid') {
-            auctionDetails.auctionParams.highest_bidder = new_op.source;
-            auctionDetails.auctionParams.highest_bid = new_op.amount;
+            auctionDetails.auctionParams.highestBiddder = new_op.source;
+            auctionDetails.auctionParams.highestBid = new_op.amount;
             await db.auctions.update(
               {
                 auctionParams: auctionDetails.auctionParams,
@@ -344,8 +349,7 @@ async function pollInstanceContract(contractAddress, lastTimeStamp) {
           // check for "dropPrice" entrypoint
           // store current_price in auction_params JSON in auctions table
           if (new_op.entrypoint === 'dropPrice') {
-            auctionDetails.auctionParams.current_price =
-              new_op.parameters.value;
+            auctionDetails.auctionParams.currentPrice = new_op.parameters.value;
             await db.auctions.update(
               { auctionParams: auctionDetails.auctionParams },
               { where: { contractAddress: auctionDetails.contractAddress } },
@@ -373,28 +377,6 @@ async function pollInstanceContract(contractAddress, lastTimeStamp) {
   } catch (err) {
     console.log({ err });
   }
-}
-
-async function onlyFirstTimeOperationsFetch(address) {
-  let responses = [];
-  let opId = '';
-  let lastTimeStamp = '';
-
-  while (true) {
-    const resp = await TezosApi.getContractOperations(
-      address,
-      opId,
-    );
-    if (resp.operations.length === 0) break;
-
-    opId = resp.last_id;
-    responses = responses.concat(resp.operations);
-  }
-
-  return {
-    ops: responses,
-    lastTimeStamp,
-  };
 }
 
 module.exports.pollAuctionContract = pollAuctionContract;

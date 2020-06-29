@@ -6,33 +6,33 @@ const api = axios.create({
   timeout: 30000,
   responseType: 'json',
 });
-const tzkt = axios.create({
-  baseURL: 'https://api.carthage.tzkt.io/v1/',
-  timeout: 30000,
-  responseType: 'json',
-});
 
-function getOperationHistory(address) {
-  const params = {
-    lastId: 0,
-    limit: 100,
-    sort: 0,
-  };
-  return tzkt
-    .get(`accounts/${address}/operations`, {
-      params,
-    })
-    .then((res) => {
-      if (!res) {
-        return res;
-      }
-      if (res.status != 200) {
-        return displayError(res);
-      }
-      console.log(res.data);
-      return res.data;
-    });
-}
+// const tzkt = axios.create({
+//   baseURL: 'https://api.carthage.tzkt.io/v1/',
+//   timeout: 30000,
+//   responseType: 'json',
+// });
+// function getOperationHistory(address) {
+//   const params = {
+//     lastId: 0,
+//     limit: 100,
+//     sort: 0,
+//   };
+//   return tzkt
+//     .get(`accounts/${address}/operations`, {
+//       params,
+//     })
+//     .then((res) => {
+//       if (!res) {
+//         return res;
+//       }
+//       if (res.status != 200) {
+//         return displayError(res);
+//       }
+//       console.log(res.data);
+//       return res.data;
+//     });
+// }
 
 function getContractOperations(
   address,
@@ -74,6 +74,28 @@ function getContractOperations(
     });
 }
 
+async function getHistoricalOperations(address) {
+    let responses = [];
+    let opId = '';
+    let lastTimeStamp = '';
+  
+    while (true) {
+      const resp = await getContractOperations(
+        address,
+        opId,
+      );
+      if (resp.operations && resp.operations.length === 0) break;
+  
+      opId = resp.last_id;
+      responses = responses.concat(resp.operations);
+    }
+  
+    return {
+      ops: responses,
+      lastTimeStamp,
+    };
+}
+    
 function getContractStorage(address) {
   return api.get(`/contract/${network}/${address}/storage`).then((res) => {
     if (res.status != 200) {
@@ -85,5 +107,4 @@ function getContractStorage(address) {
 
 module.exports.getContractStorage = getContractStorage;
 module.exports.getContractOperations = getContractOperations;
-// Never used
-module.exports.getOperationHistory = getOperationHistory;
+module.exports.getHistoricalOperations = getHistoricalOperations;

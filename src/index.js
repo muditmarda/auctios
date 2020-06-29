@@ -67,7 +67,7 @@ app.post('/update-auction-details', async (req, res) => {
     });
     return res
       .status(200)
-      .json({ message: 'Image Uploaded Successfully !', path: path });
+      .json({ message: 'Image Uploaded Successfully !', path: assetImageFileName });
   });
 });
 

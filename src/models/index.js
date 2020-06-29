@@ -16,6 +16,10 @@ db.sequelize = sequelize;
 db.auctions = require('./auction.model.js')(sequelize, Sequelize);
 db.assetDetails = require('./assetDetails.model.js')(sequelize, Sequelize);
 db.bids = require('./bid.model.js')(sequelize, Sequelize);
-db.contractLastIds = require('./contractLastId.model.js')(sequelize, Sequelize);
+// db.contractLastIds = require('./contractLastId.model.js')(sequelize, Sequelize);
+db.contractLastTimestamps = require('./contractLastTimestamp.model.js')(
+  sequelize,
+  Sequelize,
+);
 
 module.exports = db;

@@ -139,13 +139,6 @@ async function pollAuctionContract() {
               });
             }
           });
-          const assetDetails = await db.assetDetails.findOne({
-            where: { contractAddress: new_op.destination },
-          });
-          if (assetDetails) {
-            assetDescription = assetDetails.assetDescription;
-            assetImageFileName = assetDetails.assetImageFileName;
-          }
           await db.auctions.create({
             seller: new_op.source,
             assetId,
@@ -170,7 +163,7 @@ async function pollAuctionContract() {
           // save to contractLastTimestamps table
           await db.contractLastTimestamps.create({
             contractAddress: new_op.destination,
-            lastTimeStamp: ""
+            lastTimeStamp: '',
           });
           // change status to ongoing
           await db.auctions.update(
@@ -256,8 +249,25 @@ async function pollInstanceContract(contractAddress, lastTimeStamp) {
       where: { contractAddress: contractAddress },
     });
 
-    lastTimeStamp = lastTimeStamp == '' ? '' : new Date(lastTimeStamp).getTime();
+    lastTimeStamp =
+      lastTimeStamp == '' ? '' : new Date(lastTimeStamp).getTime();
 
+    // Get and set details
+    if (!auctionDetails.assetDescription) {
+      const assetDetails = await db.assetDetails.findOne({
+        where: { contractAddress },
+      });
+
+      if (instance) {
+        await auctionDetails.update({
+          assetImageFileName: assetDetails.assetImageFileName,
+          assetDescription: assetDetails.assetDescription,
+        });
+        await db.assetDetails.destroy({
+          where: { contractAddress },
+        });
+      }
+    }
 
     let new_ops;
     if (lastTimeStamp == '') {
@@ -381,10 +391,7 @@ async function onlyFirstTimeOperationsFetch(address) {
   let lastTimeStamp = '';
 
   while (true) {
-    const resp = await TezosApi.getContractOperations(
-      address,
-      opId,
-    );
+    const resp = await TezosApi.getContractOperations(address, opId);
     if (resp.operations.length === 0) break;
 
     opId = resp.last_id;

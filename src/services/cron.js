@@ -175,14 +175,14 @@ async function pollAuctionContract() {
           // save to contractLastTimestamps table
           await db.contractLastTimestamps.create({
             contractAddress: new_op.destination,
-            lastTimeStamp: '',
+            lastTimeStamp: new_op.timestamp,
           });
           // change status to ongoing
           await db.auctions.update(
             { auctionStatus: 'ongoing' },
             { where: { contractAddress: new_op.destination } },
           );
-          await pollInstanceContract(new_op.destination, '');
+          await pollInstanceContract(new_op.destination, new_op.timestamp);
           break;
         case 'destroyInstance':
           // set status as completed in auctions table
@@ -195,23 +195,29 @@ async function pollAuctionContract() {
           const auctionDetails = db.auctions.findOne({
             where: { contractAddress: new_op.source },
           });
-          const participants = auctionDetails.participants;
-          if (participants) {
+          const participantStr = auctionDetails.participants;
+          if (participantStr) {
+            const participants = participantStr.split(';');
             participants.forEach(async (participant) => {
               const bidDetails = await db.bids.findOrCreate({
                 where: {
                   userPubKey: participant,
                 },
               });
-              let index = bidDetails.participatedAuctionIds.indexOf(
+              const participatedAuctionIdsArrStr = bidDetails[0].participatedAuctionIds;
+              const participatedAuctionIdsArr = participatedAuctionIdsArrStr.split(';');
+              const bidsArrStr = bidDetails[0].bids;
+              const bidsArr = bidsArrStr.split(';');
+
+              let index = participatedAuctionIdsArr.indexOf(
                 auctionDetails.assetId,
               );
-              bidDetails.participatedAuctionIds.splice(index, 1);
-              bidDetails.bids.splice(index, 1);
+              participatedAuctionIdsArr.splice(index, 1);
+              bidsArr.splice(index, 1);
               await db.bids.update(
                 {
-                  participatedAuctionIds: bidDetails.participatedAuctionIds,
-                  bids: bidDetails.bids,
+                  participatedAuctionIds: participatedAuctionIdsArr.join(';'),
+                  bids: bidsArr.join(';'),
                 },
                 { where: { userPubKey: participant } },
               );
@@ -293,12 +299,26 @@ async function pollInstanceContract(contractAddress, lastTimeStamp) {
           // check for "bid" entrypoint
           // store highest_bid and highest_bidder in auction_params JSON in auctions table
           if (new_op.entrypoint === 'bid') {
+            const auctionParticipantsInfo = await db.auctions.findOne({
+                where: { contractAddress: contractAddress },
+              });
             auctionDetails.auctionParams.highestBiddder = new_op.source;
             auctionDetails.auctionParams.highestBid = new_op.amount;
+            let participantsStr = auctionParticipantsInfo.participants;
+            if (participantsStr) {
+                const participantsArr = participantsStr.split(';');
+                const exists = participantsArr.includes(new_op.source)
+                if (!exists){
+                    participantsArr.push(new_op.source);
+                    participantsStr = participantsArr.join(';');
+                }
+            } else {
+                participantsStr = new_op.source;
+            }
             await db.auctions.update(
               {
                 auctionParams: auctionDetails.auctionParams,
-                participants: new_op.source,
+                participants: participantsStr,
               },
               { where: { contractAddress: auctionDetails.contractAddress } },
             );
@@ -310,35 +330,36 @@ async function pollInstanceContract(contractAddress, lastTimeStamp) {
             });
             // bidDetails = [instance, created]
             if (bidDetails[1]) {
-              const participatedAuctionIds = [];
-              participatedAuctionIds.push(auctionDetails.assetId);
-              const bids = [];
-              bids.push(new_op.amount);
               await db.bids.update(
-                { participatedAuctionIds, bids },
+                { participatedAuctionIds: auctionDetails.assetId, bids: new_op.amount },
                 { where: { userPubKey: new_op.source } },
               );
             } else {
-              let index = bidDetails[0].participatedAuctionIds.indexOf(
+              const participatedAuctionIdsArrStr = bidDetails[0].participatedAuctionIds;
+              const participatedAuctionIdsArr = participatedAuctionIdsArrStr.split(';');
+              const bidsArrStr = bidDetails[0].bids;
+              const bidsArr = bidsArrStr.split(';');
+
+              let index = participatedAuctionIdsArr.indexOf(
                 auctionDetails.assetId,
               );
               if (index == -1) {
-                bidDetails[0].participatedAuctionIds.push(
+                participatedAuctionIdsArr.push(
                   auctionDetails.assetId,
                 );
-                bidDetails[0].bids.push(new_op.amount);
+                bidsArr.push(new_op.amount);
                 await db.bids.update(
                   {
                     participatedAuctionIds:
-                      bidDetails[0].participatedAuctionIds,
-                    bids: bidDetails[0].bids,
+                    participatedAuctionIdsArr.join(';'),
+                    bids: bidsArr.join(';'),
                   },
                   { where: { userPubKey: new_op.source } },
                 );
               } else {
-                bidDetails[0].bids[index] = new_op.amount;
+                bidsArr[index] = new_op.amount;
                 await db.bids.update(
-                  { bids: bidDetails[0].bids },
+                  { bids: bidsArr.join(';') },
                   { where: { userPubKey: new_op.source } },
                 );
               }

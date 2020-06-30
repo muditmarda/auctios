@@ -84,7 +84,10 @@ async function getHistoricalOperations(address) {
         address,
         opId,
       );
-      if (resp.operations && resp.operations.length === 0) break;
+      if (resp.operations && resp.operations && resp.operations.length === 0) break;
+      if (!lastTimeStamp.length && resp.operations && resp.operations.length){
+        lastTimeStamp = resp.operations[0].timestamp
+      }
   
       opId = resp.last_id;
       responses = responses.concat(resp.operations);

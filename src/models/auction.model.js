@@ -52,25 +52,6 @@ module.exports = (sequelize, Sequelize) => {
     participants: {
       type: Sequelize.TEXT,
       allowNull: true,
-      // returns an array of participants
-      get() {
-        if (this.getDataValue('participants')) {
-          return this.getDataValue('participants').split(';');
-        } else {
-          return [];
-        }
-      },
-      // appends a participant to the participants array
-      set(val) {
-        if (this.getDataValue('participants')) {
-          this.setDataValue(
-            'participants',
-            this.getDataValue('participants').concat(';').concat(val),
-          );
-        } else {
-          this.setDataValue('participants', val);
-        }
-      },
     },
     startTime: {
       type: Sequelize.STRING,

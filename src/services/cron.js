@@ -185,16 +185,23 @@ async function pollAuctionContract() {
           await pollInstanceContract(new_op.destination, new_op.timestamp);
           break;
         case 'destroyInstance':
-          // set status as completed in auctions table
-          await db.auctions.update(
-            { auctionStatus: 'completed' },
-            { where: { contractAddress: new_op.source } },
-          );
+            const auctionDetails = db.auctions.findOne({
+                where: { contractAddress: new_op.source },
+            });
+            // set status as executed/cancelled in auctions table based on whether new owner is same as or different from old owner
+            if (auctionDetails.seller === new_op.parameters.children[1].value){
+                await db.auctions.update(
+                    { auctionStatus: 'cancelled' },
+                    { where: { contractAddress: new_op.source } },
+                  );      
+            } else {
+                await db.auctions.update(
+                    { auctionStatus: 'executed' },
+                    { where: { contractAddress: new_op.source } },
+                  );
+            }
           // get participants from auctions table for contract_address
           // for each participant, clear this auction's id from their bid table entry (participatedAuctionIds array)
-          const auctionDetails = db.auctions.findOne({
-            where: { contractAddress: new_op.source },
-          });
           const participantStr = auctionDetails.participants;
           if (participantStr) {
             const participants = participantStr.split(';');
@@ -247,6 +254,17 @@ async function pollAuctionContract() {
 }
 
 async function pollAllInstanceContracts() {
+   const upcomingAuctions = await db.auctions.findAll({
+       where: {auctionStatus: "upcoming"}
+   });
+   upcomingAuctions.forEach(async (upcomingAuction) => {
+       if (Date.now() - (new Date(upcomingAuction.startTime).getTime() + (upcomingAuction.roundTime * 1000) + 30000)) {
+            await db.auctions.update(
+                {auctionStatus: "expired"},
+                { where: { contractAddress: upcomingAuction.contractAddress } },
+            )
+        }
+   });
   // findAll from auctions from contractLastTimestamps where contractAddress != auctionContractAddress
   // poll till instance is destroyed and entry is deleted from contractLastTimestamps
   const liveAuctions = await db.contractLastTimestamps.findAll({
@@ -391,10 +409,20 @@ async function pollInstanceContract(contractAddress, lastTimeStamp) {
         //
       }
     }
-    await db.contractLastTimestamps.update(
-      { lastTimeStamp },
-      { where: { contractAddress: contractAddress } },
-    );
+    if ((auctionDetails.auctionStatus === "ongoing") && (Date.now() - (new Date(auctionDetails.startTime).getTime() + (auctionDetails.roundTime * 1000) + 30000))) {
+        await db.auctions.update(
+            {auctionStatus: "unresolved"},
+            { where: { contractAddress: contractAddress } },
+        )
+        await db.contractLastTimestamps.destroy(
+            { where: { contractAddress: contractAddress } },
+        );
+    } else {
+        await db.contractLastTimestamps.update(
+          { lastTimeStamp },
+          { where: { contractAddress: contractAddress } },
+        );
+    }
   } catch (err) {
     console.log({ err });
   }

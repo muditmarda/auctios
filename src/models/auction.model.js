@@ -1,7 +1,9 @@
 const Status = {
   UPCOMING: 'upcoming',
   ONGOING: 'ongoing',
-  FINISHED: 'finished',
+  EXECUTED: 'executed',
+  UNRESOLVED: "unresolved",
+  EXPIRED: "expired",
   CANCELLED: 'cancelled',
 };
 

@@ -258,7 +258,7 @@ async function pollAllInstanceContracts() {
        where: {auctionStatus: "upcoming"}
    });
    upcomingAuctions.forEach(async (upcomingAuction) => {
-       if (Date.now() - (new Date(upcomingAuction.startTime).getTime() + (upcomingAuction.roundTime * 1000) + 30000)) {
+       if (Date.now() > (new Date(upcomingAuction.startTime).getTime() + (upcomingAuction.roundTime * 1000) + 30000)) {
             await db.auctions.update(
                 {auctionStatus: "expired"},
                 { where: { contractAddress: upcomingAuction.contractAddress } },
@@ -409,7 +409,7 @@ async function pollInstanceContract(contractAddress, lastTimeStamp) {
         //
       }
     }
-    if ((auctionDetails.auctionStatus === "ongoing") && (Date.now() - (new Date(auctionDetails.startTime).getTime() + (auctionDetails.roundTime * 1000) + 30000))) {
+    if ((auctionDetails.auctionStatus === "ongoing") && (Date.now() > (new Date(auctionDetails.startTime).getTime() + (auctionDetails.roundTime * 1000) + 30000))) {
         await db.auctions.update(
             {auctionStatus: "unresolved"},
             { where: { contractAddress: contractAddress } },

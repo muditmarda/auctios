@@ -8,9 +8,15 @@ async function getAuctions(userPubKey) {
     auctionDetails.forEach((element) => {
       if (element.dataValues.participants) {
         element.dataValues.participantCount =
-          element.dataValues.participants.length;
+          element.dataValues.participants.split(';').length;
       } else {
         element.dataValues.participantCount = 0;
+      }
+      if (element.dataValues.shortlistedBy) {
+        element.dataValues.shortlistCount =
+          element.dataValues.shortlistedBy.split(';').length;
+      } else {
+        element.dataValues.shortlistCount = 0;
       }
       res.push(element.dataValues);
     });
@@ -39,7 +45,18 @@ async function getAuctions(userPubKey) {
     }
     detail.auctionParams = element.auctionParams;
     detail.auctionStatus = element.auctionStatus;
-    detail.participantCount = element.participants.length;
+    if (element.participants) {
+      detail.participantCount =
+        element.participants.split(';').length;
+    } else {
+      detail.participantCount = 0;
+    }
+    if (element.shortlistedBy) {
+      detail.shortlistCount =
+        element.shortlistedBy.split(';').length;
+    } else {
+      detail.shortlistCount = 0;
+    }
     detail.shortlisted = false;
 
     res.push(detail);
@@ -53,7 +70,7 @@ async function getAuctions(userPubKey) {
   if (!bidDetails) {
     return res;
   }
-  bidDetails.shortlistedAuctionIds.forEach(async (element) => {
+  bidDetails.shortlistedAuctionIds.split(';').forEach(async (element) => {
     const shortlistedAuctionDetails = await db.auctions.findOne({
       where: {
         assetId: element,
@@ -70,10 +87,10 @@ async function getAuctions(userPubKey) {
     detail.auctionParams = shortlistedAuctionDetails.auctionParams;
     detail.auctionStatus = shortlistedAuctionDetails.auctionStatus;
     detail.shortlisted = true;
-
+    detail.shortlistCount = shortlistedAuctionDetails.shortlistedBy.split(';').length;
     res.push(detail);
   });
-  bidDetails.auctionId.array.forEach(async (element) => {
+  bidDetails.participatedAuctionIds.split(';').forEach(async (element) => {
     const participatedAuctionDetails = await db.auctions.findOne({
       where: { assetId: element },
     });
@@ -105,19 +122,20 @@ async function shortlistAuction(userPubKey, assetId) {
   if (bidDetails[1]) {
     const shortlistedAuctionIds = [];
     shortlistedAuctionIds.push(assetId);
-    await db.bids.update({ shortlistedAuctionIds }, { where: { userPubKey } });
+    await db.bids.update({ shortlistedAuctionIds: shortlistedAuctionIds.join(';') }, { where: { userPubKey } });
   } else {
-    let index = bidDetails[0].shortlistedAuctionIds.indexOf(assetId);
+    const shortlistedAuctionIds = bidDetails[0].shortlistedAuctionIds.split(';');
+    let index = shortlistedAuctionIds.indexOf(assetId);
     if (index == -1) {
-      bidDetails[0].shortlistedAuctionIds.push(assetId);
+      shortlistedAuctionIds.push(assetId);
       await db.bids.update(
-        { shortlistedAuctionIds: bidDetails[0].shortlistedAuctionIds },
+        { shortlistedAuctionIds: shortlistedAuctionIds.join(';') },
         { where: { userPubKey } },
       );
     } else {
-      bidDetails[0].shortlistedAuctionIds.splice(index, 1);
+      shortlistedAuctionIds.splice(index, 1);
       await db.bids.update(
-        { shortlistedAuctionIds: bidDetails[0].shortlistedAuctionIds },
+        { shortlistedAuctionIds: shortlistedAuctionIds },
         { where: { userPubKey } },
       );
     }

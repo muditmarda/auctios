@@ -200,8 +200,8 @@ async function pollAuctionContract() {
                     { where: { contractAddress: new_op.source } },
                   );
             }
-          // get participants from auctions table for contract_address
-          // for each participant, clear this auction's id from their bid table entry (participatedAuctionIds array)
+          // get participants and shortlistedBy from auctions table for contract_address
+          // for each participant, clear this auction's id from their bid table entries
           const participantStr = auctionDetails.participants;
           if (participantStr) {
             const participants = participantStr.split(';');
@@ -227,6 +227,30 @@ async function pollAuctionContract() {
                   bids: bidsArr.join(';'),
                 },
                 { where: { userPubKey: participant } },
+              );
+            });
+          }
+          const shortlistedByStr = auctionDetails.shortlistedBy;
+          if (shortlistedByStr) {
+            const shortlistedBy = shortlistedByStr.split(';');
+            shortlistedBy.forEach(async (userPubKey) => {
+              const bidDetails = await db.bids.findOrCreate({
+                where: {
+                  userPubKey,
+                },
+              });
+              const shortlistedAuctionIdsArrStr = bidDetails[0].shortlistedAuctionIds;
+              const shortlistedAuctionIdsArr = shortlistedAuctionIdsArrStr.split(';');
+
+              let index = shortlistedAuctionIdsArr.indexOf(
+                auctionDetails.assetId,
+              );
+              shortlistedAuctionIdsArr.splice(index, 1);
+              await db.bids.update(
+                {
+                  shortlistedAuctionIds: shortlistedAuctionIdsArr.join(';'),
+                },
+                { where: { userPubKey } },
               );
             });
           }

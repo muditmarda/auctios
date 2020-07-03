@@ -48,10 +48,14 @@ module.exports = (sequelize, Sequelize) => {
     },
     auctionStatus: {
       type: Sequelize.STRING,
-      // values: [Status.PENDING, Status.ONGOING, Status.FINISHED, Status.CANCELLED],
+      // values: [Status.PENDING, Status.ONGOING, Status.EXECUTED, Status.CANCELLED, Status.UNRESOLVED, Status.EXPIRED],
       defaultValue: Status.UPCOMING,
     },
     participants: {
+      type: Sequelize.TEXT,
+      allowNull: true,
+    },
+    shortlistedBy: {
       type: Sequelize.TEXT,
       allowNull: true,
     },

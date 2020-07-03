@@ -6,7 +6,11 @@ module.exports = (sequelize, Sequelize) => {
     },
     assetImageFileName: {
       type: Sequelize.STRING,
-      allowNull: true,
+      allowNull: false,
+    },
+    assetDescription: {
+      type: Sequelize.STRING,
+      allowNull: false,
     },
     createdAt: {
       type: 'TIMESTAMP',
